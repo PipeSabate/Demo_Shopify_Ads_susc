@@ -106,27 +106,60 @@ ft_purchase AS (
     WHERE rn = 1
 )
 ,
+
 {# Solución Temporal  
 Se crea count_ft_purchase para obtener el total de primeras compras por fecha
 Join se realizara mediante first_purchase_date #}
-
-
 count_ft_purchase AS (
     SELECT 
-        COUNT(ft_purchase_order_number) AS ft_purchases_momnth_pack,
+        COUNT(ft_purchase_order_number) AS ft_purchases_month_pack,
         first_purchase_date as ft_purchase_date
     FROM ft_purchase
     GROUP BY first_purchase_date
 )
+,
+orders_complete as (
+
+
 
 SELECT
 o.*,
-CASE WHEN f.ft_purchase_order_number = o.order_number THEN 'ft_purchase' ELSE 'not_ft_purchase' END purchase_type,
+CASE WHEN f.ft_purchase_order_number = o.order_number THEN 1 ELSE 0 END is_ft_purchase,
 f.first_purchase_date,
 f.ft_purchase_order_number,
-ft.ft_purchases_momnth_pack
+ft.ft_purchases_month_pack
+
 FROM orders o
 LEFT JOIN ft_purchase f
 ON o.order_id = f.first_order_id
 LEFT JOIN count_ft_purchase ft
 ON f.first_purchase_date = ft.ft_purchase_date
+
+),
+
+ft_purchases_chanel AS (
+    {# Contamos la cantidad de primeras compras que tiene cada canal agrupado por día #}
+    SELECT 
+        SUM(is_ft_purchase) AS sum_is_ft_purchase,
+        COUNT(DISTINCT order_id) AS sum_orders,
+        SUM(CASE WHEN traffic_referrer = 'Instagram'AND is_ft_purchase = '1' THEN 1 ELSE 0 END) AS sum_ft_orders_ig,
+        SUM(CASE WHEN traffic_referrer = 'Facebook' AND is_ft_purchase = '1' THEN 1 ELSE 0 END) AS sum_ft_orders_fb,
+        SUM(CASE WHEN traffic_referrer = 'Direct'   AND is_ft_purchase = '1' THEN 1 ELSE 0 END) AS sum_ft_orders_direct,
+        SUM(CASE WHEN traffic_referrer = 'Search'   AND is_ft_purchase = '1' THEN 1 ELSE 0 END) AS sum_ft_orders_search,
+        SUM(CASE WHEN traffic_referrer = 'Klaviyo'  AND is_ft_purchase = '1' THEN 1 ELSE 0 END) AS sum_ft_orders_klaviyo,
+        order_created_date as order_create_date_chanell
+        
+    FROM orders_complete
+    GROUP BY order_created_date
+)
+
+
+Select o.*,
+c.sum_ft_orders_ig,
+c.sum_ft_orders_fb,
+c.sum_ft_orders_direct,
+c.sum_ft_orders_search,
+c.sum_ft_orders_klaviyo
+FROM orders_complete o
+LEFT JOIN ft_purchases_chanel c
+ON o.order_created_date = c.order_create_date_chanell
