@@ -120,18 +120,22 @@ count_ft_purchase AS (
 ,
 orders_complete as (
 
-
-
 SELECT
 o.*,
 CASE WHEN f.ft_purchase_order_number = o.order_number THEN 1 ELSE 0 END is_ft_purchase,
 f.first_purchase_date,
 f.ft_purchase_order_number,
-ft.ft_purchases_month_pack
-
+ft.ft_purchases_month_pack,
+TO_CHAR(DATE_TRUNC('month', o.order_created_date), 'YYYY') as later_year,
+TO_CHAR(DATE_TRUNC('month', o.order_created_date), 'MM') as later_month,
+TO_CHAR(DATE_TRUNC('month', f.first_purchase_date), 'YYYY') as ft_year,
+TO_CHAR(DATE_TRUNC('month', f.first_purchase_date), 'MM') as ft_month,
+CASE WHEN later_year - ft_year > 0 then (later_year - ft_year) * 12 ELSE 0 
+END diferencia_ano,
+later_month - ft_month + diferencia_ano as transcurred_months
 FROM orders o
 LEFT JOIN ft_purchase f
-ON o.order_id = f.first_order_id
+ON o.customer_id = f.customer_id_ft
 LEFT JOIN count_ft_purchase ft
 ON f.first_purchase_date = ft.ft_purchase_date
 
